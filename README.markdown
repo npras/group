@@ -1,24 +1,13 @@
 # Programming Exercise - Grouping
 
-
 The goal of this exercise is to identify rows in a CSV file that
 __may__ represent the __same person__ based on a provided __Matching Type__ (definition below).
 
 The resulting program should allow us to test at least three matching types:
- - one that matches records with the same email address
- - one that matches records with the same phone phone number
- - one that matches records with the same email address OR the same phone number
+ - one that matches records with the same email address - same_email
+ - one that matches records with the same phone phone number - same_phone
+ - one that matches records with the same email address OR the same phone number - same_email_or_phone
 
-
-## Guidelines
-
-* **Please DO NOT fork this repository with your solution**
-* Use any language you want, as long as it can be compiled on OSX
-* Only use code that you have license to use
-* Don't hesitate to ask us any questions to clarify the project
-
-
-## Resources
 
 ### CSV Files
 
@@ -27,10 +16,9 @@ processed by the resulting code.
 
 ### Matching Type
 
-A matching type is a declaration of what logic should be used to compare the rows.
-
-For example: A matching type named same_email might make use of an algorithm that 
-matches rows based on email columns.
+* same_email
+* same_phone
+* same_email_or_phone
 
 
 ## Interface

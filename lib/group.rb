@@ -4,6 +4,8 @@ require 'byebug'
 require 'logger'
 require 'csv'
 
+require 'sequel'
+
 Process.setproctitle "group"
 
 module Group
@@ -11,7 +13,7 @@ module Group
 
   def logger
     FileUtils.mkdir_p('log')
-    @logger ||= Logger.new(FILE_PATH_LOGGER)
+    @logger ||= Logger.new(FILEPATH_LOG)
   end
 end
 
