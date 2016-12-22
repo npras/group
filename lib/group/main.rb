@@ -65,6 +65,7 @@ module Group
 
 
     def create_output_file
+      Dir.mkdir('output')
       CSV.open(@output_file, 'wb') { |f| yield(f) }
     end
 

@@ -67,3 +67,7 @@ I, [2016-12-22T19:54:51.136118 #36941]  INFO -- : ["data/input2.csv", "same_emai
 I, [2016-12-22T19:55:15.258342 #36983]  INFO -- : ["data/input2.csv", "same_email"]
 I, [2016-12-22T19:55:32.100125 #37093]  INFO -- : ["data/input2.csv", "same_email"]
 I, [2016-12-22T20:40:33.216695 #37621]  INFO -- : ["data/input2.csv", "same_email"]
+I, [2016-12-22T20:43:11.042970 #38794]  INFO -- : ["data/input2.csv", "same_email"]
+I, [2016-12-22T20:43:40.402920 #38833]  INFO -- : ["data/input2.csv", "same_email"]
+I, [2016-12-22T20:43:56.085002 #38874]  INFO -- : ["data/input2.csv", "same_email"]
+I, [2016-12-22T20:44:47.659039 #38920]  INFO -- : ["data/input2.csv", "same_email"]
