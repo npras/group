@@ -1,7 +1,9 @@
 module Group
   class Main
 
+
     DB = Sequel.connect('sqlite://group.db')
+    #DB.loggers << Logger.new($stdout)
 
 
     def process!(args)
@@ -9,18 +11,21 @@ module Group
       @input_file = args.first
       @output_file = "output/#{File.basename(@input_file)}"
       @matching_type = args.last
+      @format_row = false
 
       create_tables
-      parse_csv
+      the_work
+      delete_tables
     end
 
 
-    def parse_csv
+    def the_work
       csv_opts = { headers: true, header_converters: :symbol }
 
       create_output_file do |out|
         headers = CSV.read(@input_file, headers: true).headers.unshift('Id')
         out << headers
+        @format_row = true if headers.include?('Email') # or 'Phone'
         CSV.foreach(@input_file, csv_opts) do |row|
           out << processed_row(row)
         end
@@ -34,38 +39,33 @@ module Group
 
       case @matching_type
       when 'same_email'
-        same_person_id = DB[:emails].select(:id).where(content: emails).order(:id).limit(1).first
-        if same_person_id
+        if (same_person_id = DB[:emails].select(:id).where(content: emails).order(:id).limit(1).first)
           row[:id] = same_person_id[:id]
         else
-          person_id = DB[:people].insert(
-            first_name: row[:firstname],
-            last_name: row[:lastname],
-            zip: row[:zip],
-          )
-          row[:id] = person_id
-          phones.each do |phone|
-            DB[:phones].insert(person_id: person_id, content: phone) rescue SQLite3::ConstraintException
-          end
-          emails.each do |email|
-            DB[:emails].insert(person_id: person_id, content: email) rescue SQLite3::ConstraintException
-          end
+          row[:id] = DB[:people].insert(first_name: row[:firstname], last_name: row[:lastname], zip: row[:zip])
+          emails.each { |e| DB[:emails].insert(person_id: row[:id], content: e) rescue SQLite3::ConstraintException }
         end
+      when 'same_phone'
+        if (same_person_id = DB[:phones].select(:id).where(content: phones).order(:id).limit(1).first)
+          row[:id] = same_person_id[:id]
+        else
+          row[:id] = DB[:people].insert(first_name: row[:firstname], last_name: row[:lastname], zip: row[:zip])
+          phones.each { |ph| DB[:phones].insert(person_id: row[:id], content: ph) rescue SQLite3::ConstraintException }
+        end
+      when 'same_email_or_phone'
       end
 
-      [:id,
-       :firstname,
-       :lastname,
-       :phone1,
-       :phone2,
-       :email1,
-       :email2,
-       :zip].map { |r| row[r] }
+      fields = if @format_row
+                 [:id, :firstname, :lastname, :phone, :email, :zip]
+               else
+                 [:id, :firstname, :lastname, :phone1, :phone2, :email1, :email2, :zip]
+               end
+      fields.map { |r| row[r] }
     end
 
 
     def create_output_file
-      Dir.mkdir('output')
+      Dir.mkdir('output') unless Dir.exists?('output')
       CSV.open(@output_file, 'wb') { |f| yield(f) }
     end
 
@@ -74,6 +74,13 @@ module Group
       create_table_people
       create_table_phones
       create_table_emails
+    end
+
+
+    def delete_tables
+      [:phones, :emails, :people].each do |table|
+        DB.drop_table(table)
+      end
     end
 
 
