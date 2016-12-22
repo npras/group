@@ -39,20 +39,24 @@ module Group
 
       case @matching_type
       when 'same_email'
-        if (same_person_id = DB[:emails].select(:id).where(content: emails).order(:id).limit(1).first)
-          row[:id] = same_person_id[:id]
-        else
-          row[:id] = DB[:people].insert(first_name: row[:firstname], last_name: row[:lastname], zip: row[:zip])
-          emails.each { |e| DB[:emails].insert(person_id: row[:id], content: e) rescue SQLite3::ConstraintException }
-        end
+        row[:id] = if (same_person_id = person_with_matching(:email, emails))
+                     same_person_id[:id]
+                   else
+                     insert_person_details(row, :emails, emails)
+                   end
       when 'same_phone'
-        if (same_person_id = DB[:phones].select(:id).where(content: phones).order(:id).limit(1).first)
-          row[:id] = same_person_id[:id]
-        else
-          row[:id] = DB[:people].insert(first_name: row[:firstname], last_name: row[:lastname], zip: row[:zip])
-          phones.each { |ph| DB[:phones].insert(person_id: row[:id], content: ph) rescue SQLite3::ConstraintException }
-        end
+        row[:id] = if (same_person_id = person_with_matching(:phone, phones))
+                     same_person_id[:id]
+                   else
+                     insert_person_details(row, :phones, phones)
+                   end
       when 'same_email_or_phone'
+        row[:id] = if (same_person_id = person_with_matching(:email, emails) || person_with_matching(:phone, phones))
+                     same_person_id[:id]
+                   else
+                     # TODO: insert emails too
+                     insert_person_details(row, :phones, phones)
+                   end
       end
 
       fields = if @format_row
@@ -61,6 +65,17 @@ module Group
                  [:id, :firstname, :lastname, :phone1, :phone2, :email1, :email2, :zip]
                end
       fields.map { |r| row[r] }
+    end
+
+
+    def insert_person_details(row, entity_table, entities)
+      person_id = DB[:people].insert(first_name: row[:firstname], last_name: row[:lastname], zip: row[:zip])
+      entities.each { |e| DB[entity_table].insert(person_id: person_id, content: e) rescue SQLite3::ConstraintException }
+      person_id
+    end
+
+    def person_with_matching(entity, entities)
+      DB[entity].select(:id).where(content: entities).order(:id).limit(1).first
     end
 
 
