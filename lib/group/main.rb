@@ -9,9 +9,12 @@ module Group
     def process!(args)
       Group.logger.info args
       @input_file = args.first
-      @output_file = "output/#{File.basename(@input_file)}"
       @matching_type = args.last
-      @format_row = false
+      @output_file = "output/#{@matching_type}-#{File.basename(@input_file)}"
+
+      @out_fields = nil
+      @formatted_rows = [:id, :firstname, :lastname, :phone, :email, :zip]
+      @unformmated_rows = [:id, :firstname, :lastname, :phone1, :phone2, :email1, :email2, :zip]
 
       create_tables
       the_work
@@ -25,10 +28,8 @@ module Group
       create_output_file do |out|
         headers = CSV.read(@input_file, headers: true).headers.unshift('Id')
         out << headers
-        @format_row = true if headers.include?('Email') # or 'Phone'
-        CSV.foreach(@input_file, csv_opts) do |row|
-          out << processed_row(row)
-        end
+        @out_fields = headers.include?('Email') ? @formatted_rows : @unformmated_rows
+        CSV.foreach(@input_file, csv_opts) { |row| out << processed_row(row) }
       end
     end
 
@@ -37,45 +38,49 @@ module Group
       emails = [row[:email], row[:email1], row[:email2]].compact
       phones = [row[:phone], row[:phone1], row[:phone2]].compact
 
-      case @matching_type
-      when 'same_email'
-        row[:id] = if (same_person_id = person_with_matching(:email, emails))
-                     same_person_id[:id]
-                   else
-                     insert_person_details(row, :emails, emails)
-                   end
-      when 'same_phone'
-        row[:id] = if (same_person_id = person_with_matching(:phone, phones))
-                     same_person_id[:id]
-                   else
-                     insert_person_details(row, :phones, phones)
-                   end
-      when 'same_email_or_phone'
-        row[:id] = if (same_person_id = person_with_matching(:email, emails) || person_with_matching(:phone, phones))
-                     same_person_id[:id]
-                   else
-                     # TODO: insert emails too
-                     insert_person_details(row, :phones, phones)
-                   end
-      end
+      same_person = case @matching_type
+                    when 'same_email'
+                      person_with_any_matching(:emails, emails)
+                    when 'same_phone'
+                      person_with_any_matching(:phones, phones)
+                    when 'same_email_or_phone'
+                      person_with_any_matching(:emails, emails) ||
+                        person_with_any_matching(:phones, phones)
+                    end
 
-      fields = if @format_row
-                 [:id, :firstname, :lastname, :phone, :email, :zip]
-               else
-                 [:id, :firstname, :lastname, :phone1, :phone2, :email1, :email2, :zip]
-               end
-      fields.map { |r| row[r] }
+      row[:id] = if same_person
+                   insert_details(same_person[:person_id],
+                                  emails: emails,
+                                  phones: phones)
+                   same_person[:person_id]
+                 else
+                   insert_person_details(row, emails: emails, phones: phones)
+                 end
+
+      @out_fields.map { |r| row[r] }
     end
 
 
-    def insert_person_details(row, entity_table, entities)
+    def insert_person_details(row, phones: [], emails: [])
       person_id = DB[:people].insert(first_name: row[:firstname], last_name: row[:lastname], zip: row[:zip])
-      entities.each { |e| DB[entity_table].insert(person_id: person_id, content: e) rescue SQLite3::ConstraintException }
+      insert_details(person_id, phones: phones, emails: emails)
       person_id
     end
 
-    def person_with_matching(entity, entities)
-      DB[entity].select(:id).where(content: entities).order(:id).limit(1).first
+
+    def insert_details(person_id, phones: [], emails: [])
+      phones.each { |n| DB[:phones].insert(person_id: person_id, content: n) rescue SQLite3::ConstraintException }
+      emails.each { |e| DB[:emails].insert(person_id: person_id, content: e) rescue SQLite3::ConstraintException }
+    end
+
+
+    def person_with_any_matching(table_entity, entities)
+      DB[table_entity]
+        .select(:person_id)
+        .where(content: entities)
+        .order(:id)
+        .limit(1)
+        .first
     end
 
 
@@ -93,9 +98,9 @@ module Group
 
 
     def delete_tables
-      [:phones, :emails, :people].each do |table|
-        DB.drop_table(table)
-      end
+      [:phones,
+       :emails,
+       :people].each { |table| DB.drop_table(table) }
     end
 
 
