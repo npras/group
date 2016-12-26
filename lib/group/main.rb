@@ -19,6 +19,8 @@ module Group
       create_tables
       the_work
       delete_tables
+
+      puts "The output is saved in file: #{@output_file}."
     end
 
 
