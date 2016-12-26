@@ -43,3 +43,11 @@ Depending on the matching type, for each row, first we query the tables (emails 
 If we find a matching record, then we just get the corresponding record's person's id (person_id). We then prefix it to the existing row and write it to the output filestream. If the incoming row has new phones and emails, then that person's email and phone records are updated accordingly (new rows inserted).
 
 If we don't find a matching record, we just insert the row details as a new person record with corresponding email and phone records.
+
+
+## Modular Components
+All classes and modules for this app are wrapped in the main `Group` module.
+
+The executable file `bin/group` calls the `process` thor command defined in the `Group::CLI` thor class.
+
+This thor just acts as a proxy to the PORO `Group::Main` class whose `process!` method orchestrates the main functionality of the app.
